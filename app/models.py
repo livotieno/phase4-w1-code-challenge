@@ -1,7 +1,8 @@
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import MetaData
 from sqlalchemy_serializer import SerializerMixin
+from sqlalchemy import MetaData
 from sqlalchemy.orm import validates
+
 metadata = MetaData(naming_convention={
     "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
 })
@@ -9,56 +10,57 @@ metadata = MetaData(naming_convention={
 db = SQLAlchemy(metadata=metadata)
 
 
-class Hero(db.Model,SerializerMixin):
-    __tablename__ = 'heroes'
-    serialize_rules = ('-hero_powers.hero')
+class Hero(db.Model, SerializerMixin):
+    _tablename_ = 'heroes'
+    serialize_rules = ('-hero_powers.hero',)
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100))
-    super_name = db.Column(db.String(100))
+    name = db.Column(db.String, nullable=False)
+    super_name = db.Column(db.String, unique=True, nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, onupdate=db.func.now())
 
-    # Define the relationship with Power through HeroPower
-    powers = db.relationship('HeroPower', back_populates='hero')
-    hero_power = db.relationship('HeroPower', backref='hero')
+    hero_powers = db.relationship('HeroPower', back_populates='hero')
+
 
 class Power(db.Model, SerializerMixin):
-    __tablename__ = 'powers'
-    
+    _tablename_ = 'powers'
+    serialize_rules = ('-hero_powers.power',)
+
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100))
-    description = db.Column(db.String(100))
+    name = db.Column(db.String, nullable=False)
+    description = db.Column(db.String, nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, onupdate=db.func.now())
 
-    # Define the relationship with Hero through HeroPower
-    heroes = db.relationship('HeroPower',  back_populates='power')
-    
+    hero_powers = db.relationship('HeroPower', back_populates='power')
+
     @validates('description')
     def validate_description(self, key, description):
         if not description:
             raise ValueError('Please provide description')
         if len(description) < 20:
             raise ValueError(
-                'description should be atleast 20 characters long')
+                'description should be at least 20 characters long')
 
         return description
 
-class HeroPower(db.Model,SerializerMixin):
-    __tablename__ = 'heropowers'  
-    serialize_rules=('-hero.hero_powers', '-power.hero_powers')
-    id = db.Column(db.Integer, primary_key=True)  
-    strength = db.Column(db.String)
-    hero_id = db.Column(db.Integer, db.ForeignKey('heroes.id'))
-    power_id = db.Column(db.Integer, db.ForeignKey('powers.id'))
+
+class HeroPower(db.Model, SerializerMixin):
+    _tablename_ = 'hero_powers'
+    serialize_rules = ('-hero.hero_powers', '-power.hero_powers')
+
+    id = db.Column(db.Integer, primary_key=True)
+    strength = db.Column(db.String, nullable=False)
+    hero_id = db.Column(db.Integer, db.ForeignKey('heroes.id'), nullable=False)
+    power_id = db.Column(db.Integer, db.ForeignKey(
+        'powers.id'), nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, onupdate=db.func.now())
 
-    # Define the relationships with Hero and Power
-    hero = db.relationship('Hero', back_populates='powers')
-    power = db.relationship('Power', back_populates='heroes')
-    
+    hero = db.relationship('Hero', back_populates="hero_powers", lazy=True)
+    power = db.relationship('Power', back_populates="hero_powers", lazy=True)
+
     @validates('strength')
     def validate_strength(self, key, strength):
         strengths = ["Strong", "Weak", "Average"]
