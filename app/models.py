@@ -1,69 +1,61 @@
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy_serializer import SerializerMixin
-from sqlalchemy import MetaData
+from datetime import datetime
 from sqlalchemy.orm import validates
+from flask_sqlalchemy import SQLAlchemy
 
-metadata = MetaData(naming_convention={
-    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-})
-
-db = SQLAlchemy(metadata=metadata)
+db = SQLAlchemy()
 
 
-class Hero(db.Model, SerializerMixin):
-    _tablename_ = 'heroes'
-    serialize_rules = ('-hero_powers.hero',)
-
+class HeroPower(db.Model):
+    __tablename__ = 'hero_power'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, nullable=False)
-    super_name = db.Column(db.String, unique=True, nullable=False)
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
-    updated_at = db.Column(db.DateTime, onupdate=db.func.now())
-
-    hero_powers = db.relationship('HeroPower', back_populates='hero')
-
-
-class Power(db.Model, SerializerMixin):
-    _tablename_ = 'powers'
-    serialize_rules = ('-hero_powers.power',)
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, nullable=False)
-    description = db.Column(db.String, nullable=False)
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
-    updated_at = db.Column(db.DateTime, onupdate=db.func.now())
-
-    hero_powers = db.relationship('HeroPower', back_populates='power')
-
-    @validates('description')
-    def validate_description(self, key, description):
-        if not description:
-            raise ValueError('Please provide description')
-        if len(description) < 20:
-            raise ValueError(
-                'description should be at least 20 characters long')
-
-        return description
-
-
-class HeroPower(db.Model, SerializerMixin):
-    _tablename_ = 'hero_powers'
-    serialize_rules = ('-hero.hero_powers', '-power.hero_powers')
-
-    id = db.Column(db.Integer, primary_key=True)
-    strength = db.Column(db.String, nullable=False)
-    hero_id = db.Column(db.Integer, db.ForeignKey('heroes.id'), nullable=False)
-    power_id = db.Column(db.Integer, db.ForeignKey(
-        'powers.id'), nullable=False)
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
-    updated_at = db.Column(db.DateTime, onupdate=db.func.now())
-
-    hero = db.relationship('Hero', back_populates="hero_powers", lazy=True)
-    power = db.relationship('Power', back_populates="hero_powers", lazy=True)
+    hero_id = db.Column(db.Integer, db.ForeignKey('hero.id'), nullable=False)
+    power_id = db.Column(db.Integer, db.ForeignKey('power.id'), nullable=False)
+    strength = db.Column(db.String(50), nullable=False)
+    hero = db.relationship('Hero', back_populates='hero_powers')
+    power = db.relationship('Power', back_populates='power_heroes')
 
     @validates('strength')
-    def validate_strength(self, key, strength):
-        strengths = ["Strong", "Weak", "Average"]
-        if strength not in strengths:
-            raise ValueError('Strength should be (Strong, Weak or Average)')
-        return strength
+    def validate_strength(self, key, value):
+        assert value in [
+            'Strong', 'Weak', 'Average'], "Strength must be one of: 'Strong', 'Weak', 'Average'"
+        return value
+
+
+class Hero(db.Model):
+    __tablename__ = 'hero'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    super_name = db.Column(db.String(50), nullable=False)
+    hero_powers = db.relationship(
+        'HeroPower', back_populates='hero', lazy=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "super_name": self.super_name,
+            "powers": [{"id": power.id, "name": power.name, "description": power.description}
+                       for power in self.powers]
+        }
+
+
+class Power(db.Model):
+    __tablename__ = 'power'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.String(255), nullable=False)
+    power_heroes = db.relationship(
+        'HeroPower', back_populates='power', lazy=True)
+
+    @validates('description')
+    def validate_description(self, key, value):
+        assert value and len(
+            value) >= 10, "Description must be present and at least 20 characters long"
+        return value
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description
+        }

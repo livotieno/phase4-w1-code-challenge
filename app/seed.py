@@ -1,50 +1,60 @@
-from faker import Faker
-from app import app
-from models import HeroPower, Hero, Power, db
-import random
 
-fake = Faker()
+
+from app import create_app, db
+from models import Hero, Power, HeroPower
+
+app = create_app()
 
 with app.app_context():
+    db.create_all()
+    print("Database tables created.")
 
-    Power.query.delete()
-    Hero.query.delete()
-    HeroPower.query.delete()
+    heroes_data = [
+        {'name': 'Hulk', 'super_name': 'Bruce Banner'},
+        {'name': 'Loki', 'super_name': 'Tom Hiddleston'},
+        {'name': 'Hawkeye', 'super_name': 'Clint Barton'},
+        {'name': 'Thor', 'super_name': 'Chris Hemsworth'},
+        {'name': 'Batman', 'super_name': 'Bruce Wayne'},
 
-    print("🦸‍♀ Seeding powers...")
-    powers = []
-    for i in range(20):
-        power = Power(
-            name=fake.text(max_nb_chars=20),
-            description=fake.sentence(nb_words=10)
-        )
-        powers.append(power)
-    db.session.add_all(powers)
+    ]
+
+    for hero_info in heroes_data:
+        hero = Hero(**hero_info)
+        db.session.add(hero)
+
     db.session.commit()
+    print("Heroes data added successfully.")
 
-    print("🦸‍♀ Seeding heroes...")
-    heroes = []
-    for i in range(20):
-        hero = Hero(
-            name=fake.first_name(),
-            super_name=fake.unique.name(),
-        )
-        heroes.append(hero)
-    db.session.add_all(heroes)
+    powers_data = [
+        {'name': 'Flight', 'description': 'Ability to fly'},
+        {'name': 'Strength', 'description': 'Superhuman strength'},
+        {'name': 'Strength', 'description': 'Superhuman strength'},
+        {'name': 'Strength', 'description': 'Superhuman strength'},
+        {'name': 'Strength', 'description': 'Superhuman strength'},
+        {'name': 'Strength', 'description': 'Superhuman strength'},
+    ]
+
+    for power_info in powers_data:
+        power = Power(**power_info)
+        db.session.add(power)
+
     db.session.commit()
+    print("Powers data added successfully.")
 
-    print("🦸‍♀ Adding powers to heroes...")
-    strengths = ["Strong", "Weak", "Average"]
-    hero_powers = []
-    for i in range(20):
-        hero_power = HeroPower(
-            strength=random.choice(strengths),
-            hero_id=random.choice(heroes).id,
-            power_id=random.choice(powers).id
-        )
-        hero_powers.append(hero_power)
+    hero_powers_data = [
+        {'hero_id': 1, 'power_id': 1, 'strength': 'Average'},
+        {'hero_id': 2, 'power_id': 2, 'strength': 'Weak'},
+        {'hero_id': 3, 'power_id': 2, 'strength': 'Average'},
+        {'hero_id': 4, 'power_id': 1, 'strength': 'Strong'},
+        {'hero_id': 5, 'power_id': 2, 'strength': 'Average'},
+        {'hero_id': 6, 'power_id': 1, 'strength': 'Strong'},
+    ]
 
-    db.session.add_all(hero_powers)
+    for hero_power_info in hero_powers_data:
+        hero_power = HeroPower(**hero_power_info)
+        db.session.add(hero_power)
+
     db.session.commit()
+    print("Hero powers data added successfully.")
 
-    print("🦸‍♀ Done seeding!")
+    print("Seed data added successfully.")
